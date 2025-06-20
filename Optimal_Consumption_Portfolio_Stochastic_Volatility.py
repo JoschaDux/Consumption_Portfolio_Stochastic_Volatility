@@ -43,29 +43,29 @@ model = Model()
 grid = Grid()
 
 #Define policy function
-def policy(f_ns, psi, rho):
+def policy(g_ns, psi, rho):
     # Calculate numerical derivative
-    f_ns_y = (np.roll(f_ns, -1) - np.roll(f_ns, 1)) / (2 * grid.dy)
+    g_ns_y = (np.roll(g_ns, -1) - np.roll(g_ns, 1)) / (2 * grid.dy)
     
     # Linear extrapolation at lower bound
-    slope_lb = (f_ns_y[1] - f_ns_y[2]) / (grid.y[1] - grid.y[2])
-    intercept_lb = f_ns_y[1] - slope_lb * grid.y[1]
-    f_ns_y[0] = slope_lb*grid.y[0]+intercept_lb
+    slope_lb = (g_ns_y[1] - g_ns_y[2]) / (grid.y[1] - grid.y[2])
+    intercept_lb = g_ns_y[1] - slope_lb * grid.y[1]
+    g_ns_y[0] = slope_lb*grid.y[0]+intercept_lb
     
     # Linear extrapolation at upper bound
-    slope_ub = (f_ns_y[-2] - f_ns_y[-3]) / (grid.y[-2] - grid.y[-3])
-    intercept_ub = f_ns_y[-2] - slope_ub * grid.y[-2]
-    f_ns_y[-1] = slope_ub*grid.y[-1]+intercept_ub
+    slope_ub = (g_ns_y[-2] - g_ns_y[-3]) / (grid.y[-2] - grid.y[-3])
+    intercept_ub = g_ns_y[-2] - slope_ub * grid.y[-2]
+    g_ns_y[-1] = slope_ub*grid.y[-1]+intercept_ub
     
     # Calculate optimal consumption wealth-ratio
     if psi != 1:
         theta_pref = (1-model.gam)/(1-1/psi)
-        cw = (1/model.delta*f_ns**(1/theta_pref))**(-psi)
+        cw = (1/model.delta*g_ns**(1/theta_pref))**(-psi)
     else:
         cw = model.delta*np.ones(grid.Ny + 1)
     
     # Calculate optimal portfolio share
-    pi = model.lam/model.gam+model.beta*rho/model.gam*f_ns_y/f_ns
+    pi = model.lam/model.gam+model.beta*rho/model.gam*g_ns_y/g_ns
     
     # Linear extrapolation for pi at lower bound
     slope_lb = (pi[1]-pi[2])/ (grid.y[1] - grid.y[2])
@@ -94,13 +94,13 @@ def coefficients(cw, pi, rho):
 
 
 # Define function for the aggregator value 
-def aggregator(cw, f, psi):
+def aggregator(cw, g, psi):
     # Case distinction for psi
     if psi !=1:
         theta_pref = (1-model.gam)/(1-1/psi)
-        value = model.delta*theta_pref*(np.multiply(cw**(1-1/psi),f**(1-1/theta_pref))-f)
+        value = model.delta*theta_pref*(np.multiply(cw**(1-1/psi),g**(1-1/theta_pref))-g)
     else:
-        value = (1-model.gam)*model.delta*np.multiply(f, np.log(cw))
+        value = (1-model.gam)*model.delta*np.multiply(g, np.log(cw))
     return value
 
 
@@ -113,9 +113,9 @@ Nt_save = int(grid.Nt/mult_t)
 plot_t = grid.dt * grid_save_data
 
 # Initialize value function and policies
-f = np.zeros((rho_max*psi_max, grid.Ny + 1, Nt_save+1))
-cw = np.zeros_like(f)
-pi = np.zeros_like(f)
+g = np.zeros((rho_max*psi_max, grid.Ny + 1, Nt_save+1))
+cw = np.zeros_like(g)
+pi = np.zeros_like(g)
 
 k=0
 m=0
@@ -127,14 +127,14 @@ for rho in model.rho_list:
         # Value function at maturity
         if psi != 1:
             theta_pref = (1-model.gam)/(1-1/psi)
-            f[k, :, -1] = model.eps**((1-model.gam)/(psi-1))*model.delta**(1/theta_pref)*np.ones(grid.Ny + 1)
-            f_ns_old = f[k, :, -1].copy()
+            g[k, :, -1] = model.eps**((1-model.gam)/(psi-1))*model.delta**(1/theta_pref)*np.ones(grid.Ny + 1)
+            g_ns_old = g[k, :, -1].copy()
         else:
-            f[k, :, -1] = np.ones(grid.Ny + 1)
-            f_ns_old = f[k, :, -1].copy()
+            g[k, :, -1] = np.ones(grid.Ny + 1)
+            g_ns_old = g[k, :, -1].copy()
             
         # Policies at maturity
-        cw_ns, pi_ns = policy(f_ns_old, psi, rho)
+        cw_ns, pi_ns = policy(g_ns_old, psi, rho)
         cw[k, :, -1] = cw_ns
         cw_ns_old = cw_ns.copy()
         pi[k, :, -1] = pi_ns
@@ -148,23 +148,23 @@ for rho in model.rho_list:
             coe_1, coe_2, coe_3 = coefficients(cw_ns_old, psi, rho)
             
             # Compue value function a previous time step
-            f_ns = coe_2 * f_ns_old + coe_1 * np.roll(f_ns_old, -1) + coe_3 * np.roll(f_ns_old, 1)+grid.dt*aggregator(cw_ns_old, f_ns_old, psi)
+            g_ns = coe_2 * g_ns_old + coe_1 * np.roll(g_ns_old, -1) + coe_3 * np.roll(g_ns_old, 1)+grid.dt*aggregator(cw_ns_old, g_ns_old, psi)
             
             # Linear extrapolation of f at lower bound
-            slope_lb = (f_ns[1] - f_ns[2]) / (grid.y[1] - grid.y[2])
-            intercept_lb = f_ns[1] - slope_lb * grid.y[1]
-            f_ns[0] = slope_lb * grid.y[0] + intercept_lb
+            slope_lb = (g_ns[1] - g_ns[2]) / (grid.y[1] - grid.y[2])
+            intercept_lb = g_ns[1] - slope_lb * grid.y[1]
+            g_ns[0] = slope_lb * grid.y[0] + intercept_lb
             
             # Linear extrapolation of f at upper bound
-            slope_ub = (f_ns[-2] - f_ns[-3]) / (grid.y[-2] - grid.y[-3])
-            intercept_ub = f_ns[-2] - slope_ub * grid.y[-2]
-            f_ns[-1] = slope_ub * grid.y[-1] + intercept_ub
+            slope_ub = (g_ns[-2] - g_ns[-3]) / (grid.y[-2] - grid.y[-3])
+            intercept_ub = g_ns[-2] - slope_ub * grid.y[-2]
+            g_ns[-1] = slope_ub * grid.y[-1] + intercept_ub
             
             # Save values for value function
-            f_ns_old = f_ns.copy()
+            g_ns_old = g_ns.copy()
     
             # Save values for policy
-            cw_ns, pi_ns = policy(f_ns, psi, rho)
+            cw_ns, pi_ns = policy(g_ns, psi, rho)
     
             # Set values for next iteration step
             cw_ns_old = cw_ns.copy()
@@ -173,7 +173,7 @@ for rho in model.rho_list:
             # Save values
             if j in grid_save_data:
                 
-                f[k, :, m] = f_ns
+                g[k, :, m] = g_ns
                 cw[k, :, m] = cw_ns
                 pi[k, :, m] = pi_ns
                 m=m-1
@@ -191,10 +191,10 @@ labels_rho = [r'$\rho = -0.4$', r'$\rho= 0$', r'$\rho = 0.4$']
 
 plt.figure()
 for i in range(3):
-    plt.plot(grid.y, np.log(f[i, :, 0]/f[i, 0, 0]), color=colors[i], linewidth=2, label=labels_EIS[i])
-plt.title(r"Function f(t, y) at $t=0$ for $\rho = -0.4$")
+    plt.plot(grid.y, np.log(g[i, :, 0]/g[i, 0, 0]), color=colors[i], linewidth=2, label=labels_EIS[i])
+plt.title(r"Function g(t, y) at $t=0$ for $\rho = -0.4$")
 plt.xlabel("State $Y_t$")
-plt.ylabel("$\ln(f(0, Y_t)/f(0, 0))$")
+plt.ylabel(r"$\ln(g(0, Y_t)/g(0, 0))$")
 plt.legend()
 plt.grid(False)
 plt.xlim([0, 0.5])
@@ -221,12 +221,12 @@ plt.grid(False)
 plt.xlim([0, 0.5])
 
 plt.figure()
-plt.plot(grid.y, np.log(f[0, :, 0]/f[0, 0, 0]), color=colors[0], linewidth=2, label=labels_rho[0])
-plt.plot(grid.y, np.log(f[3, :, 0]/f[3, 0, 0]), color=colors[1], linewidth=2, label=labels_rho[1])
-plt.plot(grid.y, np.log(f[6, :, 0]/f[6, 0, 0]), color=colors[2], linewidth=2, label=labels_rho[2])
-plt.title(r"Function f(t, y) at $t=0$ for EIS $=0.5$")
+plt.plot(grid.y, np.log(g[0, :, 0]/g[0, 0, 0]), color=colors[0], linewidth=2, label=labels_rho[0])
+plt.plot(grid.y, np.log(g[3, :, 0]/g[3, 0, 0]), color=colors[1], linewidth=2, label=labels_rho[1])
+plt.plot(grid.y, np.log(g[6, :, 0]/g[6, 0, 0]), color=colors[2], linewidth=2, label=labels_rho[2])
+plt.title(r"Function g(t, y) at $t=0$ for EIS $=0.5$")
 plt.xlabel("State $Y_t$")
-plt.ylabel(r"Value function $\ln(f(0, Y_t)/f(0, 0))$")
+plt.ylabel(r"Value function $\ln(g(0, Y_t)/g(0, 0))$")
 plt.legend()
 plt.grid(False)
 plt.xlim([0, 0.5])
