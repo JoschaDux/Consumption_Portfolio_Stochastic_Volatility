@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
-"""
-Spyder Editor
-
-This is a temporary script file.
+""""
+@author: joschaduchscherer
 """
 
 import numpy as np
@@ -46,16 +44,6 @@ grid = Grid()
 def policy(g_ns, psi, rho):
     # Calculate numerical derivative
     g_ns_y = (np.roll(g_ns, -1) - np.roll(g_ns, 1)) / (2 * grid.dy)
-    
-    # Linear extrapolation at lower bound
-    slope_lb = (g_ns_y[1] - g_ns_y[2]) / (grid.y[1] - grid.y[2])
-    intercept_lb = g_ns_y[1] - slope_lb * grid.y[1]
-    g_ns_y[0] = slope_lb*grid.y[0]+intercept_lb
-    
-    # Linear extrapolation at upper bound
-    slope_ub = (g_ns_y[-2] - g_ns_y[-3]) / (grid.y[-2] - grid.y[-3])
-    intercept_ub = g_ns_y[-2] - slope_ub * grid.y[-2]
-    g_ns_y[-1] = slope_ub*grid.y[-1]+intercept_ub
     
     # Calculate optimal consumption wealth-ratio
     if psi != 1:
